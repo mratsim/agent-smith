@@ -37,13 +37,12 @@ const cppSrcPath = currentSourcePath.rsplit(DirSep, 1)[0] &
 # {.passC: "`sdl-config --cflags`".} # SDL 1.2
 # {.passL: "`sdl-config --libs`".}   # SDL 1.2
 
-{.passC: "-I\"third_party/sdl/include\" -D_GNU_SOURCE=1 -D_THREAD_SAFE".}
-# {.passL: "-lSDLMain -lSDL".}
-{.passL: "-lSDL -lSDLmain".}
+{.passC: "-I\"third_party/sdl/include\"".}
+{.passL: "-lSDL".} # {.passL: "-lSDLMain".}
 {.passL: "-lz".}   # Zlib
 
-when defined(osx):
-  {.passL: "-Wl,-framework,Cocoa".}
+# when defined(osx):
+#   {.passL: "-Wl,-framework,Cocoa".}
 
 # ############################################################
 #

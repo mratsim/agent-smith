@@ -180,7 +180,7 @@ proc saveNext*(this: ScreenExporter; screen: ALEScreen) {.screen_exporter.}
 # src/ale_interface.hpp
 
 {.pragma: h_ale_interface, header: cppSrcPath & "ale_interface.hpp".}
-proc newALEInterface*(): ptr ALEInterface {.h_ale_interface, importcpp:"new ALEInterface()", constructor.}
+proc newALEInterface*(): ALEInterface {.h_ale_interface, importcpp:"new ALEInterface()", constructor.}
 # proc destroyALEInterface*(this: ALEInterface)
 proc newALEInterface*(display_screen: bool): ALEInterface {.h_ale_interface, importcpp:"new ALEInterface(#)", constructor.}
 # proc getString*(this: ALEInterface; key: CppString): CppString

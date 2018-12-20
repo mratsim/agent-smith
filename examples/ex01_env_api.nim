@@ -22,6 +22,7 @@ proc main() =
   let rom = paramStr(1)
 
   let ale = newALEInterface(display_screen = true)
+    # Note: launching that from VSCode terminal doesn't display anything
   ale.setBool("sound", true)
 
   ale.setInt("random_seed", 123) # Reproducibility
