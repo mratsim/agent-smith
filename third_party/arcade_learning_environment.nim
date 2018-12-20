@@ -119,13 +119,30 @@ type
 
 # ############################################################
 #
+#                      External links
+#
+# ############################################################
+
+# {.warning: "Execution of a potentially unsafe command \"sdl-config\" to configure SDL".}
+# {.passC: "`sdl-config --cflags`".} # SDL 1.2
+# {.passL: "`sdl-config --libs`".} # SDL 1.2
+
+{.passC: "-I\"third_party/sdl/include\"".} # Note this needs SDL 1.2
+# {.passL: "-lSDLMain -lSDL".}
+{.passL: "-lSDL".}
+{.passL: "-lz".}   # Zlib
+
+# when defined(osx):
+#   {.passL: "-framework Cocoa".}
+
+# ############################################################
+#
 #                       Compilation
 #
 # ############################################################
 
 {.passC: "-D__USE_SDL -DSOUND_SUPPORT -std=c++11 -D__STDC_CONSTANT_MACROS".}
 
-{.passC: "-I\"third_party/sdl/include\"".} # Note this needs SDL 1.2
 {.passC: "-I\"" & cppSrcPath & "\"".}
 {.passC: "-I\"" & cppSrcPath & "common\"".}
 {.passC: "-I\"" & cppSrcPath & "controllers\"".}
@@ -139,39 +156,22 @@ type
 # Need to use relative paths - https://github.com/nim-lang/Nim/issues/9370
 const rel_path = "./arcade_learning_environment/src/"
 {.compile: (rel_path & "common/*.cpp", "ale_common_$#.o") .}
+{.compile: (rel_path & "common/*.cxx", "ale_common_$#.o") .} # But why?
 {.compile: (rel_path & "controllers/*.cpp", "ale_controller_$#.o") .}
 {.compile: (rel_path & "emucore/*.cxx", "ale_emucore_$#.o") .}
-{.compile: (rel_path & "emucore/6502/src/*.cxx", "ale_emucore6502_$#.o") .}
-{.compile: (rel_path & "environment/*.cxx", "ale_environment_$#.o") .}
+{.compile: (rel_path & "emucore/m6502/src/*.cxx", "ale_emucore_m6502_$#.o") .}
+{.compile: (rel_path & "environment/*.cpp", "ale_environment_$#.o") .}
 {.compile: (rel_path & "games/*.cpp", "ale_games_$#.o") .}
 {.compile: (rel_path & "games/supported/*.cpp", "ale_games_supported_$#.o") .}
 # {.compile: rel_path & "external/TinyMT/tinymt32.c" .}
-
 {.compile: rel_path & "ale_interface.cpp" .}
 
-# ############################################################
-#
-#                Link against SDL 1.2
-#
-# ############################################################
-
-# Nim normally automatically handles that if we have a proc tagged dynlib
-# but since those are hidden in the third-party C++ code we need to make sure
-# it's done at runtime
-
+{.passC: "-I\"" & cppSrcPath & "os_dependent\"".}
 when defined(windows):
-  const
-    LibSDL = "SDL.dll"
-elif defined(macosx):
-  const
-    LibSDL = "libSDL-1.2.0.dylib"
+  {.compile: (rel_path & "os_dependent/*Win32.cxx", "ale_os_$#Win32.o") .}
 else:
-  const
-    LibSDL = "libSDL.so(|.1|.0)"
-
-import dynlib
-let sdlHandle = loadlib(LibSDL)
-addQuitProc(proc() {.noconv.} = unloadLib(sdlHandle))
+  {.compile: (rel_path & "os_dependent/*UNIX.cxx", "ale_os_$#UNIX.o") .}
+  {.compile: (rel_path & "os_dependent/FSNodePOSIX.cxx", "ale_os_FSNodePOSIX.o") .}
 
 # ############################################################
 #
