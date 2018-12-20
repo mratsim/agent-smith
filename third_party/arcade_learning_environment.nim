@@ -119,16 +119,74 @@ type
 
 # ############################################################
 #
+#                       Compilation
+#
+# ############################################################
+
+{.passC: "-D__USE_SDL -DSOUND_SUPPORT -std=c++11 -D__STDC_CONSTANT_MACROS".}
+
+{.passC: "-I\"third_party/sdl/include\"".} # Note this needs SDL 1.2
+{.passC: "-I\"" & cppSrcPath & "\"".}
+{.passC: "-I\"" & cppSrcPath & "common\"".}
+{.passC: "-I\"" & cppSrcPath & "controllers\"".}
+{.passC: "-I\"" & cppSrcPath & "emucore\"".}
+{.passC: "-I\"" & cppSrcPath & "emucore/m6502/src\"".}
+{.passC: "-I\"" & cppSrcPath & "emucore/m6502/src/bspf/src\"".}
+{.passC: "-I\"" & cppSrcPath & "environment\"".}
+{.passC: "-I\"" & cppSrcPath & "games\"".}
+{.passC: "-I\"" & cppSrcPath & "games/supported\"".}
+
+# Need to use relative paths - https://github.com/nim-lang/Nim/issues/9370
+const rel_path = "./arcade_learning_environment/src/"
+{.compile: (rel_path & "common/*.cpp", "ale_common_$#.o") .}
+{.compile: (rel_path & "controllers/*.cpp", "ale_controller_$#.o") .}
+{.compile: (rel_path & "emucore/*.cxx", "ale_emucore_$#.o") .}
+{.compile: (rel_path & "emucore/6502/src/*.cxx", "ale_emucore6502_$#.o") .}
+{.compile: (rel_path & "environment/*.cxx", "ale_environment_$#.o") .}
+{.compile: (rel_path & "games/*.cpp", "ale_games_$#.o") .}
+{.compile: (rel_path & "games/supported/*.cpp", "ale_games_supported_$#.o") .}
+# {.compile: rel_path & "external/TinyMT/tinymt32.c" .}
+
+{.compile: rel_path & "ale_interface.cpp" .}
+
+# ############################################################
+#
+#                Link against SDL 1.2
+#
+# ############################################################
+
+# Nim normally automatically handles that if we have a proc tagged dynlib
+# but since those are hidden in the third-party C++ code we need to make sure
+# it's done at runtime
+
+when defined(windows):
+  const
+    LibSDL = "SDL.dll"
+elif defined(macosx):
+  const
+    LibSDL = "libSDL-1.2.0.dylib"
+else:
+  const
+    LibSDL = "libSDL.so(|.1|.0)"
+
+import dynlib
+let sdlHandle = loadlib(LibSDL)
+addQuitProc(proc() {.noconv.} = unloadLib(sdlHandle))
+
+# ############################################################
+#
 #                  Procedures and methods
 #
 # ############################################################
 
+{.push callConv: cdecl.}
+
 # ##############################
 # src/environment/ale_ram.hpp
 
-{.pragma: ale_ram, cdecl, importcpp, header: cppSrcPath & "environment/ale_ram.hpp".}
+{.pragma: ale_ram, importcpp, header: cppSrcPath & "environment/ale_ram.hpp".}
 func get*(this: ALERam; x: uint32): byte {.ale_ram.}
-proc mut*(this: ALERam; x: uint32): ptr byte {.cdecl, importcpp:"byte", header: cppSrcPath & "environment/ale_ram.hpp".}
+proc mut*(this: ALERam; x: uint32): ptr byte {.importcpp:"byte", header: cppSrcPath & "environment/ale_ram.hpp".}
 func array*(this: ALERam): ptr byte {.ale_ram.}
 func size*(this: ALERam): csize {.ale_ram.}
 func equals*(this: ALERam; rhs: ALERam): bool {.ale_ram.}
@@ -136,9 +194,9 @@ func equals*(this: ALERam; rhs: ALERam): bool {.ale_ram.}
 # ##############################
 # src/environment/ale_screen.hpp
 
-{.pragma: ale_screen, cdecl, importcpp, header: cppSrcPath & "environment/ale_screen.hpp".}
+{.pragma: ale_screen, importcpp, header: cppSrcPath & "environment/ale_screen.hpp".}
 func get*(this: ALEScreen; r: int32; c: int32): Pixel {.ale_screen.}
-func mut*(this: ALEScreen; r: int32; c: int32): ptr Pixel {.cdecl, importcpp:"pixel", header: cppSrcPath & "environment/ale_screen.hpp".}
+func mut*(this: ALEScreen; r: int32; c: int32): ptr Pixel {.importcpp:"pixel", header: cppSrcPath & "environment/ale_screen.hpp".}
 func getRow*(this: ALEScreen; r: int32): ptr Pixel {.ale_screen.}
   ## Row-major ordering, increase ptr by 1 for next column
 func getArray*(this: ALEScreen): ptr Pixel {.ale_screen.}
@@ -157,49 +215,61 @@ proc saveNext*(this: ScreenExporter; screen: ALEScreen) {.screen_exporter.}
 # ##############################
 # src/ale_interface.hpp
 
-{.pragma: ale_interface, cdecl, importcpp, header: cppSrcPath & "ale_interface.hpp".}
-proc constructALEInterface*(): ALEInterface {.ale_interface, constructor.}
-proc destroyALEInterface*(this: ALEInterface) {.ale_interface.}
-proc constructALEInterface*(display_screen: bool): ALEInterface {.ale_interface, constructor.}
-proc getString*(this: ALEInterface; key: CppString): CppString {.ale_interface.}
-proc getInt*(this: ALEInterface; key: CppString): int32 {.ale_interface.}
-proc getBool*(this: ALEInterface; key: CppString): bool {.ale_interface.}
-proc getFloat*(this: ALEInterface; key: CppString): float32 {.ale_interface.}
-proc setString*(this: ALEInterface; key: CppString; value: CppString) {.ale_interface.}
-proc setInt*(this: ALEInterface; key: CppString; value: int32) {.ale_interface.}
-proc setBool*(this: ALEInterface; key: CppString; value: bool) {.ale_interface.}
-proc setFloat*(this: ALEInterface; key: CppString; value: float32) {.ale_interface.}
-proc loadROM*(this: ALEInterface; rom_file: CppString) {.ale_interface.}
-proc act*(this: ALEInterface; action: Action): Reward {.ale_interface.}
-proc game_over*(this: ALEInterface): bool {.ale_interface.}
-proc reset_game*(this: ALEInterface) {.ale_interface.}
-proc getAvailableModes*(this: ALEInterface): ModeVect {.ale_interface.}
-proc setMode*(this: ALEInterface; m: GameMode) {.ale_interface.}
-proc getAvailableDifficulties*(this: ALEInterface): DifficultyVect {.ale_interface.}
-proc setDifficulty*(this: ALEInterface; m: Difficulty) {.ale_interface.}
-proc getLegalActionSet*(this: ALEInterface): ActionVect {.ale_interface.}
-proc getMinimalActionSet*(this: ALEInterface): ActionVect {.ale_interface.}
-proc getFrameNumber*(this: ALEInterface): int32 {.ale_interface.}
-proc lives*(this: ALEInterface): int32 {.ale_interface.}
-proc getEpisodeFrameNumber*(this: ALEInterface): int32 {.ale_interface.}
-proc getScreen*(this: ALEInterface): ALEScreen {.ale_interface.}
-proc getScreenGrayscale*(
-      this: ALEInterface;
-      grayscale_output_buffer: CppVector[byte]) {.ale_interface.}
-proc getScreenRGB*(
-        this: ALEInterface;
-        output_rgb_buffer: CppVector[byte]) {.ale_interface.}
-proc getRAM*(this: ALEInterface): ALERam {.ale_interface.}
-proc saveState*(this: ALEInterface) {.ale_interface.}
-proc loadState*(this: ALEInterface) {.ale_interface.}
-proc cloneState*(this: ALEInterface): ALEState {.ale_interface.}
-proc restoreState*(this: ALEInterface; state: ALEState) {.ale_interface.}
-proc cloneSystemState*(this: ALEInterface): ALEState {.ale_interface.}
-proc restoreSystemState*(this: ALEInterface; state: ALEState) {.ale_interface.}
-proc saveScreenPNG*(this: ALEInterface; filename: CppString) {.ale_interface.}
-proc createScreenExporter*(this: ALEInterface; path: CppString): ptr ScreenExporter {.ale_interface.}
-proc welcomeMessage*(): CppString {.ale_interface.}
-proc disableBufferedIO*() {.ale_interface.}
-proc createOSystem*(theOSystem: CppUniquePtr[OSystem];
-                    theSettings: CppUniquePtr[Settings]) {.ale_interface.}
-proc loadSettings*(romfile: string; theOSystem: CppUniquePtr[OSystem]) {.ale_interface.}
+{.pragma: h_ale_interface, header: cppSrcPath & "ale_interface.hpp".}
+# proc newALEInterface*(): ptr ALEInterface {.h_ale_interface, importcpp:"new ALEInterface()", constructor.}
+# proc destroyALEInterface*(this: ALEInterface)
+# proc constructALEInterface*(display_screen: bool): ALEInterface {.constructor.}
+# proc getString*(this: ALEInterface; key: CppString): CppString
+# proc getInt*(this: ALEInterface; key: CppString): int32
+# proc getBool*(this: ALEInterface; key: CppString): bool
+# proc getFloat*(this: ALEInterface; key: CppString): float32
+# proc setString*(this: ALEInterface; key: CppString; value: CppString)
+# proc setInt*(this: ALEInterface; key: CppString; value: int32)
+# proc setBool*(this: ALEInterface; key: CppString; value: bool)
+# proc setFloat*(this: ALEInterface; key: CppString; value: float32)
+# proc loadROM*(this: ALEInterface; rom_file: CppString)
+# proc act*(this: ALEInterface; action: Action): Reward
+# proc game_over*(this: ALEInterface): bool
+# proc reset_game*(this: ALEInterface)
+# proc getAvailableModes*(this: ALEInterface): ModeVect
+# proc setMode*(this: ALEInterface; m: GameMode)
+# proc getAvailableDifficulties*(this: ALEInterface): DifficultyVect
+# proc setDifficulty*(this: ALEInterface; m: Difficulty)
+# proc getLegalActionSet*(this: ALEInterface): ActionVect
+# proc getMinimalActionSet*(this: ALEInterface): ActionVect
+# proc getFrameNumber*(this: ALEInterface): int32
+# proc lives*(this: ALEInterface): int32
+# proc getEpisodeFrameNumber*(this: ALEInterface): int32
+# proc getScreen*(this: ALEInterface): ALEScreen
+# proc getScreenGrayscale*(
+#       this: ALEInterface;
+#       grayscale_output_buffer: CppVector[byte])
+# proc getScreenRGB*(
+#         this: ALEInterface;
+#         output_rgb_buffer: CppVector[byte])
+# proc getRAM*(this: ALEInterface): ALERam
+# proc saveState*(this: ALEInterface)
+# proc loadState*(this: ALEInterface)
+# proc cloneState*(this: ALEInterface): ALEState
+# proc restoreState*(this: ALEInterface; state: ALEState)
+# proc cloneSystemState*(this: ALEInterface): ALEState
+# proc restoreSystemState*(this: ALEInterface; state: ALEState)
+# proc saveScreenPNG*(this: ALEInterface; filename: CppString)
+# proc createScreenExporter*(this: ALEInterface; path: CppString): ptr ScreenExporter
+# proc welcomeMessage*(): CppString
+proc disableBufferedIO*() {.h_ale_interface, importcpp:"ALEInterface::disableBufferedIO()".}
+# proc createOSystem*(theOSystem: CppUniquePtr[OSystem];
+#                     theSettings: CppUniquePtr[Settings])
+# proc loadSettings*(romfile: string; theOSystem: CppUniquePtr[OSystem])
+
+{.pop.}
+
+# ############################################################
+#
+#                       End wrapper
+#
+# ############################################################
+
+when isMainModule:
+  disableBufferedIO()
+
