@@ -132,6 +132,7 @@ type
 {.passL: "-lSDL".}
 {.passL: "-lz".}   # Zlib
 
+
 # when defined(osx):
 #   {.passL: "-framework Cocoa".}
 
@@ -270,6 +271,6 @@ proc disableBufferedIO*() {.h_ale_interface, importcpp:"ALEInterface::disableBuf
 #
 # ############################################################
 
-when isMainModule:
+proc wrapper*() {.exportc.} =
   disableBufferedIO()
 
