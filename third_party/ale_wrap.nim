@@ -64,7 +64,7 @@ const cppSrcPath = currentSourcePath.rsplit(DirSep, 1)[0] &
 # ############################################################
 
 type
-  Action*{.importc,
+  Action*{.importc, size: sizeof(int32),
           header: cppSrcPath & "common/Constants.h".} = enum
     PLAYER_A_NOOP = 0, PLAYER_A_FIRE = 1, PLAYER_A_UP = 2, PLAYER_A_RIGHT = 3,
     PLAYER_A_LEFT = 4, PLAYER_A_DOWN = 5, PLAYER_A_UPRIGHT = 6, PLAYER_A_UPLEFT = 7,
