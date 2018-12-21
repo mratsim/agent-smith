@@ -23,7 +23,8 @@ type
   CppVector* {.importcpp"std::vector", header: "<vector>", byref.} [T] = object
   CppString* {.importcpp: "std::string", header: "<string>", byref.} = object
 
-proc newCppVector*[T](): CppVector[T] {.importcpp: "std::vector<'0>()", header: "<vector>".}
+proc newCppVector*[T](): CppVector[T] {.importcpp: "std::vector<'0>()", header: "<vector>", constructor.}
+proc newCppVector*[T](size: int): CppVector[T] {.importcpp: "std::vector<'0>(#)", header: "<vector>", constructor.}
 proc len*(v: CppVector): int {.importcpp: "#.size()", header: "<vector>".}
 proc add*[T](v: var CppVector[T], elem: T){.importcpp: "#.push_back(#)", header: "<vector>".}
 proc `[]`*[T](v: CppVector[T], idx: int): T{.importcpp: "#[#]", header: "<vector>".}
